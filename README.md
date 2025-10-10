@@ -30,5 +30,5 @@ Other boards -- 4
 
 ## BlackScript
 Programs for it can be made in our BlackScript language.
-* [Compilier for BS](BSC/bsc.py)
+* [Compiler for BS](BSC/bsc.py)
 * [Syntax](BSSyntax.md)
