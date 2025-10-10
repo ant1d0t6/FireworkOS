@@ -1,0 +1,105 @@
+# MKSYS application
+# Copyright (C) 2025 hidely/ResiChat
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+
+PRINT FireworkOS 1.0 Installer
+###Making system drive
+
+##Creating dirs
+PRINT Creating dirs
+SYS_CMD mkdir /bin
+SYS_CMD mkdir /dev
+SYS_CMD mkdir /etc
+SYS_CMD mkdir /home
+SYS_CMD mkdir /media
+SYS_CMD mkdir /opt
+SYS_CMD mkdir /ssr
+SYS_CMD mkdir /var
+SYS_CMD mkdir /lib
+SYS_CMD mkdir /ssr/share
+SYS_CMD mkdir /ssr/share/man
+
+##Creting basic device links
+PRINT Creating device links
+SYS_CMD touch /dev/i2c
+SYS_CMD touch /dev/tty
+SYS_CMD touch /dev/btldr
+SYS_CMD touch /dev/sdcard
+SYS_CMD touch /dev/kernel
+SYS_CMD touch /dev/random
+SYS_CMD touch /dev/null
+SYS_CMD touch /dev/zero
+
+##Compiling programs
+PRINT Compiling programs
+SYS_CMD bsc /setup/shutdown.bs /bin/shutdown
+SYS_CMD bsc /setup/reboot.bs /bin/reboot
+SYS_CMD bsc /setup/help.bs /bin/help
+
+##Creating necessary files
+PRINT Creating necessary files
+SYS_CMD touch /etc/hostname
+SYS_CMD touch /etc/hosts
+SYS_CMD touch /var/log
+SYS_CMD append /etc/hosts 127.0.0.1 localhost
+SYS_CMD touch /etc/passwd
+SYS_CMD touch /etc/user
+SYS_CMD touch /ssr/autorun.sh
+
+
+###User setup
+##Login
+SET username_cmd = "append /etc/user "
+SET username_data = ""
+PRINTNR Enter username::
+GETLINE username_data
+CONCAT username_cmd username_data
+SYSCMD_VAR username_cmd
+##Password
+SET passwd_cmd = "append /etc/user "
+SET passwd_data = ""
+PRINTNR Enter password::
+GETLINE passwd_data
+CONCAT passwd_cmd passwd_data
+SYSCMD_VAR passwd_cmd
+
+##Hostname
+SET hostname_cmd = "sethostname "
+SET hostname_data = ""
+PRINTNR Enter new hostname::
+GETLINE hostname_data
+CONCAT hostname_cmd hostname_data
+SYSCMD_VAR hostname_cmd
+
+
+###Cleaning
+PRINT Cleaning
+SYS_CMD rm /setup/shutdown.bs
+SYS_CMD rm /setup/reboot.bs
+SYS_CMD rm /setup/help.bs
+SYS_CMD rmdir /setup
+
+
+###Finish
+##Rebooting
+PRINT All done!
+ASM wdr
+ASM jmp 0
+PRINT And now, press the RESET button to reboot.
+PRINT Because you are using a non-avr board =(
+SYS_CMD rm /mksys
+
+END
