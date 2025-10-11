@@ -28,6 +28,20 @@ Other boards -- 4
 * ESP32 Wroom
 * Arduino Uno R4 Wi-FI
 
+## Wireless Network (ESP32/Uno R4)
+To set the SSID, enter: (replace your_ssid to your SSID)
+```
+wlan SSID your_ssid
+```
+And, to set the password, enter: (replace your_pw to your password)
+```
+wlan SSID your_pw
+```
+To connect to the Wi-Fi AP, enter:
+```
+wlan connect
+```
+
 ## BlackScript
 Programs for it can be made in our BlackScript language.
 * [Compiler for BS](BSC/bsc.py)
