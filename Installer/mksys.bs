@@ -53,6 +53,7 @@ SYS_CMD bsc /setup/help.bs /bin/help
 PRINT Creating necessary files
 SYS_CMD touch /etc/hostname
 SYS_CMD touch /etc/hosts
+SYS_CMD touch /etc/wlancred
 SYS_CMD touch /var/log
 SYS_CMD append /etc/hosts 127.0.0.1 localhost
 SYS_CMD touch /etc/passwd
@@ -75,7 +76,6 @@ PRINTNR Enter password::
 GETLINE passwd_data
 CONCAT passwd_cmd passwd_data
 SYSCMD_VAR passwd_cmd
-
 ##Hostname
 SET hostname_cmd = "sethostname "
 SET hostname_data = ""
@@ -83,7 +83,20 @@ PRINTNR Enter new hostname::
 GETLINE hostname_data
 CONCAT hostname_cmd hostname_data
 SYSCMD_VAR hostname_cmd
-
+##Wi-Fi SSID
+SET ssid_cmd = "append /etc/wlancred "
+SET ssid_data = ""
+PRINTNR Enter SSID for the wireless network:
+GETLINE ssid_data
+CONCAT ssid_cmd ssid_data
+SYSCMD_VAR ssid_cmd
+##Wi-Fi Password
+SET password_cmd = "append /etc/wlancred "
+SET password_data = ""
+PRINTNR Enter password for the wireless network:
+GETLINE password_data
+CONCAT password_cmd password_data
+SYSCMD_VAR password_cmd
 
 ###Cleaning
 PRINT Cleaning

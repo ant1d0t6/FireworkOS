@@ -93,6 +93,8 @@ String getline(){
                         
                         // Перезапуск bash после выполнения команды
                         break;
+                        //active_line = "";
+                        //continue;
                     }
                     
                     // Обработка Backspace (ASCII 8 или 127)
@@ -127,7 +129,10 @@ String hiddenGetline(){
                         Serial.println(); // Переход на новую строку
                         return active_line;
                         
+                        // Перезапуск bash после выполнения команды
                         break;
+                        //active_line = "";
+                        //continue;
                     }
                     
                     // Обработка Backspace (ASCII 8 или 127)
@@ -135,13 +140,17 @@ String hiddenGetline(){
                         if (active_line.length() > 0) {
                             // Удаляем последний символ из строки
                             active_line.remove(active_line.length() - 1);
-                          
+                            
+                            // Стираем символ из терминала
+                            //Serial.print("\b \b"); // Backspace, пробел, backspace
                         }
                     }
                     
                     // Обработка обычных символов
                     else if (isPrintable(inChar)) {
                         active_line += inChar;
+                        //Serial.print();
+                        //Serial.print(inChar); // Эхо символа
                     }
                 }
             }
@@ -159,7 +168,10 @@ String customGetline(String symbol = "*"){
                         Serial.println(); // Переход на новую строку
                         return active_line;
                         
+                        // Перезапуск bash после выполнения команды
                         break;
+                        //active_line = "";
+                        //continue;
                     }
                     
                     // Обработка Backspace (ASCII 8 или 127)
@@ -181,5 +193,8 @@ String customGetline(String symbol = "*"){
                     }
                 }
             }
+}
+int print(String text="", String end="\n\r"){
+  Serial.print(text + end);
 }
 #endif

@@ -48,15 +48,15 @@ boolean sd_initialized = false;
 File root;
 String current_dir = "/";
 String current_user = "";
-String devicetype = "crossplatform"; 
-String kernelver = "fireworkos-1.0_snowos-1.0"; 
+String devicetype = ""; 
+String kernelver = "fireworkos-1.1_snowos-1.1"; 
 String hostname = "";
 boolean storage_mounted = false;
 boolean has_wifi = false;
 boolean wifi_autoconnect = false;
 String wlan_ssid = "";
 String wlan_password = "";
-
+String kerndate = "2025-10-10";
 
 typedef struct {
     String name;
@@ -751,18 +751,11 @@ int set_hostname(String new_hostname = "", boolean is_starts = false) {
 }
 
 int build_hello(){
-    Serial.println("\e[44m\e[37mFireworkOS v.1.0\e[0m (SnowOS Kernel 1.0)");
-    Serial.println("Powered by \e[35mhidely\e[0m/\e[33mResiChat\e[0m =D, ");
+    Serial.println("\e[44m\e[37mFireworkOS v.1.1\e[0m (SnowOS Kernel 1.1)");
+    Serial.println("Powered by \e[35mhidely\e[0m/\e[33mResiChat\e[0m =D ");
     return 0;
 }
-int ls(){
-    if (storage_mounted){
-        return 0; 
-    }else{
-        Serial.println("The storage doesn't mounted");
-        return 1;
-    }
-}
+
 #if defined(ESP8266) || defined(ESP32) || defined(ARDUINO_UNOR4_WIFI)
     int init_wlan(){
         if (readWiFiConfig(wlan_ssid, wlan_password)) {
@@ -779,8 +772,40 @@ int ls(){
     int saveWiFiConfig(String ssid, String password) {
         String wifiConfigFile = "/etc/wlancred";
         
+        // Сначала убедимся, что директория существует
+        if (!SD.exists("/etc")) {
+            if (!SD.mkdir("/etc")) {
+                Serial.println("Error: Cannot create /etc directory");
+                return 0;
+            }
+        }
+        
         String content = ssid + "\n" + password;
-        return overwriteFile(wifiConfigFile, content);
+        
+        // Удаляем старый файл если существует
+        if (SD.exists(wifiConfigFile)) {
+            if (!SD.remove(wifiConfigFile)) {
+                Serial.println("Error: Cannot remove old config file");
+                return 0;
+            }
+        }
+        
+        // Создаем новый файл
+        File file = SD.open(wifiConfigFile, FILE_WRITE);
+        if (!file) {
+            Serial.println("Error: Cannot create config file");
+            return 0;
+        }
+        
+        if (file.print(content)) {
+            file.close();
+            Serial.println("WiFi config saved successfully");
+            return 1;
+        } else {
+            Serial.println("Error: Cannot write to config file");
+            file.close();
+            return 0;
+        }
     }
 
     // Функция для чтения WiFi credentials из файла
@@ -803,24 +828,18 @@ int ls(){
             return 0;
         }
         
-        String lines[2];
-        splitString(content, "\n", lines, 2);
-        int lineCount = 2;
         
-        if (lineCount >= 2) {
-            ssid = lines[0];
-            password = lines[1];
-            ssid.trim();
-            password.trim();
-            return 1;
-        } else if (lineCount == 1) {
-            ssid = lines[0];
-            ssid.trim();
-            password = "";
-            return 1;
-        }
+        //String user_content = readFileToString("/etc/user");
+        String wlan_lines[10];
+        int wlancred_lineCount = splitString(content, "\n", wlan_lines, 10);
+        String wlan_login = (wlancred_lineCount >= 1) ? wlan_lines[0] : "";
+        String wlan_password = (wlancred_lineCount >= 2) ? wlan_lines[1] : "";
+        wlan_login.trim();
+        wlan_password.trim();
+        ssid = wlan_login;
+        password = wlan_password;
         
-        return 0;
+        return 1;
     }
 #endif
 
@@ -847,7 +866,10 @@ int wlanctl(String arg){
             }
         }
         else if(arg == "connect"){
-            readWiFiConfig(wlan_ssid, wlan_password);
+            if (!readWiFiConfig(wlan_ssid, wlan_password)) {
+                Serial.println("Error: No WiFi config found");
+                return 1;
+            }
             
             if (wlan_ssid.length() == 0) {
                 Serial.println("Error: SSID not set. Use 'wlan ssid <name>'");
@@ -864,11 +886,15 @@ int wlanctl(String arg){
             #elif defined(ARDUINO_UNOR4_WIFI)
                 WiFi.disconnect();
                 delay(1000);
-                WiFi.begin(wlan_ssid.c_str(), wlan_password.c_str());
+                // Для UNO R4 WiFi нужно использовать правильный метод
+                int status = WiFi.begin(wlan_ssid.c_str(), wlan_password.c_str());
+                if (status != WL_CONNECTED) {
+                    Serial.println("WiFi.begin() failed");
+                }
             #endif
             
             unsigned long startTime = millis();
-            while (WiFi.status() != WL_CONNECTED && millis() - startTime < 15000) {
+            while (WiFi.status() != WL_CONNECTED && millis() - startTime < 20000) { // Увеличил таймаут до 20 сек
                 delay(500);
                 Serial.print(".");
             }
@@ -876,10 +902,15 @@ int wlanctl(String arg){
             if (WiFi.status() == WL_CONNECTED) {
                 Serial.println("\nConnected!");
                 Serial.println("IP address: " + WiFi.localIP().toString());
+                Serial.println("RSSI: " + String(WiFi.RSSI()) + " dBm");
                 has_wifi = true;
                 return 0;
             } else {
-                Serial.println("\nConnection failed!");
+                Serial.println("\nConnection failed! Status: " + String(WiFi.status()));
+                #if defined(ARDUINO_UNOR4_WIFI)
+                    // Дополнительная диагностика для UNO R4
+                    Serial.println("UNO R4 WiFi status: " + String(WiFi.status()));
+                #endif
                 return 1;
             }
         }
@@ -1574,7 +1605,6 @@ void processBytecode(uint8_t opcode, File &file) {
                 varName += ch;
             }
             
-            // Используем вашу функцию getline() для чтения ввода
             String val = getStringVariable(varName);
             processCommand(val);
             break;
@@ -1602,6 +1632,176 @@ void processBytecode(uint8_t opcode, File &file) {
         }
         case 0x22: { // GREENTEXT -- Green
             Serial.print("\e[32m");
+            break;
+        }
+        case 0x23: { // YELLOWTEXT -- Green
+            Serial.print("\e[33m");
+            break;
+        }
+        case 0x24: { // BLUETEXT -- Blue
+            Serial.print("\e[34m");
+            break;
+        }
+        case 0x25: { // CATCHREQUEST
+            String varName, url;
+            char ch;
+            while (file.available() && (ch = file.read()) != 0) {
+                varName += ch;
+            }
+            while (file.available() && (ch = file.read()) != 0) {
+                url += ch;
+            }
+
+
+
+            String request = "";
+
+
+            if (!checkNetwork()) {
+                Serial.println("Error: No network connection");
+            }
+            else{
+            #if defined(ESP8266) || defined(ESP32)
+                HTTPClient http;
+                WiFiClient client;
+            
+                
+                if (http.begin(client, url)) {
+                int httpCode = http.GET();
+                
+                if (httpCode > 0) {                    
+                    if (httpCode == HTTP_CODE_OK) {
+                        String payload = http.getString();
+                        request = payload;
+                    } else {
+                        request = String(httpCode);
+                    }
+                } else {
+                    request = String(httpCode);
+                }
+                
+                http.end();
+                } else {
+                //Serial.println("Unable to connect to: " + url);
+                }
+            #elif defined(ARDUINO_UNOR4_WIFI)
+                WiFiClient client;
+                
+                //Serial.println("Fetching: " + url);
+                
+                if (client.connect(url.c_str(), 80)) {
+                client.println("GET / HTTP/1.1");
+                client.println("Host: " + url);
+                client.println("Connection: close");
+                client.println();
+                
+                while (client.connected()) {
+                    String line = client.readStringUntil('\n');
+                    if (line == "\r") {
+                        break;
+                    }
+                }
+                
+                while (client.available()) {
+                    String line = client.readStringUntil('\n');
+                    request += line;
+                    //Serial.println(line);
+                }
+                
+                client.stop();
+                } else {
+
+                //Serial.println("Unable to connect to: " + url);
+                }
+            #else
+                Serial.println("Curl not supported on this platform");
+            #endif
+            
+
+            }
+            setStringVariable(varName, request);
+            break;
+        }
+        case 0x26: { // CATCHREQUESTVAR
+            String varName, url_var;
+            char ch;
+            
+            // Читаем имя переменной для результата
+            while (file.available() && (ch = file.read()) != 0) {
+                varName += ch;
+            }
+            
+            // Читаем имя переменной с URL
+            while (file.available() && (ch = file.read()) != 0) {
+                url_var += ch;
+            }
+
+            // Получаем URL из переменной
+            String url = getStringVariable(url_var);
+            String request = "";
+            
+            // Отладочный вывод (опционально)
+            // Serial.print("CATCHREQUESTVAR: url='");
+            // Serial.print(url);
+            // Serial.println("'");
+
+            if (!checkNetwork()) {
+                Serial.println("Error: No network connection");
+                setStringVariable(varName, "Error: No network connection");
+            } else {
+            #if defined(ESP8266) || defined(ESP32)
+                HTTPClient http;
+                WiFiClient client;
+            
+                if (http.begin(client, url)) {
+                    int httpCode = http.GET();
+                    
+                    if (httpCode > 0) {                    
+                        if (httpCode == HTTP_CODE_OK) {
+                            String payload = http.getString();
+                            request = payload;
+                        } else {
+                            request = "HTTP Error: " + String(httpCode);
+                        }
+                    } else {
+                        request = "Request failed";
+                    }
+                    
+                    http.end();
+                } else {
+                    request = "Connection failed";
+                }
+            #elif defined(ARDUINO_UNOR4_WIFI)
+                WiFiClient client;
+                
+                if (client.connect(url.c_str(), 80)) {
+                    client.println("GET / HTTP/1.1");
+                    client.println("Host: " + url);
+                    client.println("Connection: close");
+                    client.println();
+                    
+                    while (client.connected()) {
+                        String line = client.readStringUntil('\n');
+                        if (line == "\r") {
+                            break;
+                        }
+                    }
+                    
+                    while (client.available()) {
+                        String line = client.readStringUntil('\n');
+                        request += line;
+                    }
+                    
+                    client.stop();
+                } else {
+                    request = "Connection failed";
+                }
+            #else
+                request = "Curl not supported on this platform";
+            #endif
+            }
+            
+            setStringVariable(varName, request);
             break;
         }
         case 0xFF: // END_PROGRAM
@@ -1941,9 +2141,40 @@ int compileBlackScript(String sourceFile, String outputFile) {
         else if (command == "GREENTEXT") {
             outFile.write((uint8_t)0x22); // GREENTEXT opcode
         }
+        else if (command == "CATCHREQUEST") {
+            if (partCount >= 3) {
+                outFile.write((uint8_t)0x25); // CATCHREQUEST opcode
+                String varName1 = parts[1];
+                String url = parts[2];
+                
+                // Записываем первую переменную
+                outFile.write((const uint8_t*)varName1.c_str(), varName1.length());
+                outFile.write((uint8_t)0x00);
+                
+                // Записываем вторую переменную
+                outFile.write((const uint8_t*)url.c_str(), url.length());
+                outFile.write((uint8_t)0x00);
+            }
+        }
+        else if (command == "CATCHREQUESTVAR") {
+            if (partCount >= 3) {
+                outFile.write((uint8_t)0x26); // CATCHREQUESTVAR opcode
+                String varName1 = parts[1];
+                String url = parts[2];
+                
+                // Записываем первую переменную
+                outFile.write((const uint8_t*)varName1.c_str(), varName1.length());
+                outFile.write((uint8_t)0x00);
+                
+                // Записываем вторую переменную
+                outFile.write((const uint8_t*)url.c_str(), url.length());
+                outFile.write((uint8_t)0x00);
+            }
+        }
         else if (command == "END") {
             outFile.write((uint8_t)0xFF); // END opcode
         }
+
     }
     
     // Записываем конечный END если его не было
@@ -2146,8 +2377,8 @@ int clear(){
 String uname(String arg = "a"){
     switch(arg[0]){
         case 'a':
-            Serial.println("fireworkos 1.0 "+devicetype+" kernel "+kernelver+" 2025-10-10");
-            return "fireworkos 1.0 "+devicetype+" kernel"+kernelver+" 2025-10-10";
+            Serial.println("fireworkos 1.1 "+devicetype+" kernel "+kernelver+" "+kerndate);
+            return "fireworkos 1.1 "+devicetype+" kernel"+kernelver+" "+kerndate;
         case 'r':
             Serial.print(kernelver);
             return kernelver;
@@ -2238,10 +2469,28 @@ void processCommand(String cmd) {
         shellscript_starter(text);
         //current_dir = text;
     }
+    /*
+    else if (cmd.startsWith("systemctl ")) {
+        String text = cmd.substring(10);
+        systemctl(text);
+    }*/
     else if (cmd.startsWith("bsc ")) {
         String args = cmd.substring(4);
         bsc_command(args);
     }
+    /*
+    else if (cmd.startsWith("retrocat ")) {
+        String text = cmd.substring(9);
+        retrocat(text);
+    }
+*/
+/*
+    else if (cmd.startsWith("exec ")) {
+      String filename = cmd.substring(5);
+      filename.trim();
+      executeProgram(filename);
+    }
+*/
     else if (cmd.startsWith("curl ")) {
         String url = cmd.substring(5);
         url.trim();
@@ -2323,6 +2572,7 @@ void processCommand(String cmd) {
         
         String text = cmd.substring(5);
         Serial.println(text);
+        //echo(text);
     }
 
 

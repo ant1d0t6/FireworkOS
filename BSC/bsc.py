@@ -60,6 +60,11 @@ class SnowCompiler:
             'BASICCOLOR': 0x20,
             'REDTEXT': 0x21,
             'GREENTEXT': 0x22,
+            'YELLOWTEXT': 0x23,
+            'BLUETEXT': 0x24,
+
+            'CATCHREQUEST': 0x25,
+            'CATCHREQUESTVAR': 0x26,
 
             'END': 0xFF
         }
@@ -264,6 +269,31 @@ class SnowCompiler:
                     f.write(bytes([self.opcodes['REDTEXT']]))
                 elif command == 'GREENTEXT':
                     f.write(bytes([self.opcodes['GREENTEXT']]))
+                elif command == 'YELLOWTEXT':
+                    f.write(bytes([self.opcodes['YELLOWTEXT']]))
+                elif command == 'BLUETEXT':
+                    f.write(bytes([self.opcodes['BLUETEXT']]))
+
+                elif command == 'CATCHREQUEST':
+                    if len(parts) >= 3:
+                        var_name1 = parts[1]
+                        var_name2 = parts[2]
+                        f.write(bytes([self.opcodes['CATCHREQUEST']]))  # CATCHREQUEST opcode
+                        f.write(var_name1.encode('ascii'))
+                        f.write(b'\x00')
+                        f.write(var_name2.encode('ascii'))
+                        f.write(b'\x00')
+                elif command == 'CATCHREQUESTVAR':
+                    if len(parts) >= 3:
+                        var_name1 = parts[1]
+                        var_name2 = parts[2]
+                        f.write(bytes([self.opcodes['CATCHREQUESTVAR']]))  # CATCHREQUEST opcode
+                        f.write(var_name1.encode('ascii'))
+                        f.write(b'\x00')
+                        f.write(var_name2.encode('ascii'))
+                        f.write(b'\x00')
+
+
 
                 elif command == 'END':
                     f.write(bytes([self.opcodes['END']]))
