@@ -26,8 +26,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <SD.h>
 #include "baselib.h"
 #include "global_vars.h"
-#include <Crypto.h>
-#include <SHA256.h>
 #if defined(ESP8266) || defined(ESP32)
   #include <HTTPClient.h>
   #include <WiFiClient.h>
@@ -1903,20 +1901,7 @@ void processBytecode(uint8_t opcode, File &file) {
             }
             break;
         }
-        case 0x2A: { // SHA256
-            String varName1, text;
-            char ch;
-            while (file.available() && (ch = file.read()) != 0) {
-                varName1 += ch;
-            }
-            while (file.available() && (ch = file.read()) != 0) {
-                text += ch;
-            }
-            
-            String hash = sha256Hash(text);
 
-            setStringVariable(varName1, hash);
-        }
         //короче, если кто-то читает мой код сейчас, то знайте, я НЕ буду делать goto-шки, потому что это треш и мозги варятся
         case 0xFF: // END_PROGRAM
             return;
@@ -2305,20 +2290,6 @@ int compileBlackScript(String sourceFile, String outputFile) {
             
         } else if (command == "BREAK") {
             outFile.write((uint8_t)0x29); // BREAK_LOOP opcode
-        }else if (command == "SHA256") {
-            if (partCount >= 3) {
-                outFile.write((uint8_t)0x2A); // SHA256 opcode
-                String varName1 = parts[1];
-                String tempstr = parts[2];
-                
-                // Записываем первую переменную
-                outFile.write((const uint8_t*)varName1.c_str(), varName1.length());
-                outFile.write((uint8_t)0x00);
-                
-                // Записываем строку
-                outFile.write((const uint8_t*)tempstr.c_str(), tempstr.length());
-                outFile.write((uint8_t)0x00);
-            }
         }
 
     }
