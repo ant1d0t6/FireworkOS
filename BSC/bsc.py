@@ -66,6 +66,10 @@ class SnowCompiler:
             'CATCHREQUEST': 0x25,
             'CATCHREQUESTVAR': 0x26,
 
+            'LOOP_START': 0x27,
+            'LOOP_END': 0x28,
+            'BREAK_LOOP': 0x29,
+
             'END': 0xFF
         }
 
@@ -293,7 +297,22 @@ class SnowCompiler:
                         f.write(var_name2.encode('ascii'))
                         f.write(b'\x00')
 
+                elif command == 'LOOP':
+                    if len(parts) == 1:
+                        # Бесконечный цикл
+                        f.write(bytes([self.opcodes['LOOP_START']]))
+                        f.write(struct.pack('<I', 0))  # 0 итераций = бесконечный цикл
+                    elif len(parts) == 2:
+                        # Цикл с определенным количеством итераций
+                        iterations = int(parts[1])
+                        f.write(bytes([self.opcodes['LOOP_START']]))
+                        f.write(struct.pack('<I', iterations))
 
+                elif command == 'ENDLOOP':
+                    f.write(bytes([self.opcodes['LOOP_END']]))
+
+                elif command == 'BREAK':
+                    f.write(bytes([self.opcodes['BREAK_LOOP']]))
 
                 elif command == 'END':
                     f.write(bytes([self.opcodes['END']]))

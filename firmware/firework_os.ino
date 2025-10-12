@@ -26,6 +26,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <SD.h>
 #include "baselib.h"
 #include "global_vars.h"
+#include <Crypto.h>
+#include <SHA256.h>
 #if defined(ESP8266) || defined(ESP32)
   #include <HTTPClient.h>
   #include <WiFiClient.h>
@@ -49,14 +51,15 @@ File root;
 String current_dir = "/";
 String current_user = "";
 String devicetype = ""; 
-String kernelver = "fireworkos-1.1_snowos-1.1"; 
+String kernelver = "fireworkos-1.1.1_snowos-1.1.1"; 
 String hostname = "";
 boolean storage_mounted = false;
 boolean has_wifi = false;
 boolean wifi_autoconnect = false;
 String wlan_ssid = "";
 String wlan_password = "";
-String kerndate = "2025-10-10";
+String kerndate = "2025-10-12";
+boolean wifi_connecting = false;
 
 typedef struct {
     String name;
@@ -751,7 +754,7 @@ int set_hostname(String new_hostname = "", boolean is_starts = false) {
 }
 
 int build_hello(){
-    Serial.println("\e[44m\e[37mFireworkOS v.1.1\e[0m (SnowOS Kernel 1.1)");
+    Serial.println("\e[44m\e[37mFireworkOS v.1.1.1\e[0m (SnowOS Kernel 1.1.1)");
     Serial.println("Powered by \e[35mhidely\e[0m/\e[33mResiChat\e[0m =D ");
     return 0;
 }
@@ -843,6 +846,62 @@ int build_hello(){
     }
 #endif
 
+
+int stater_wlan_connect(String message = "") {
+    if (!readWiFiConfig(wlan_ssid, wlan_password)) {
+        return 1;
+    }
+    
+    if (wlan_ssid.length() == 0) {
+        return 1;
+    }
+    if (wifi_connecting) {
+        return 1;
+    }
+    #if defined(ESP8266) || defined(ESP32) || defined(ARDUINO_UNOR4_WIFI)
+        // Проверяем, не подключены ли мы уже
+        if (WiFi.status() == WL_CONNECTED) {
+            WiFi.disconnect();
+            delay(500);
+        }
+        
+        #if defined(ESP8266) || defined(ESP32)
+            WiFi.mode(WIFI_STA);
+            WiFi.setAutoReconnect(true);
+            WiFi.persistent(true);
+        #endif
+        
+        WiFi.begin(wlan_ssid.c_str(), wlan_password.c_str());
+        
+    #else
+        return 1;
+    #endif
+    
+    unsigned long startTime = millis();
+    int progressBarPos = 1;
+
+    while (WiFi.status() != WL_CONNECTED && millis() - startTime < 20000) { 
+        if (progressBarPos == 1){
+            Serial.print("\r"+message + "\t[*  ]");
+            progressBarPos++;
+        } else if (progressBarPos == 2){
+            Serial.print("\r"+message + "\t[ * ]");
+            progressBarPos++;
+        }
+        else if (progressBarPos == 3){
+            Serial.print("\r"+message + "\t[  *]");
+            progressBarPos = 1;
+        }
+        delay(300);
+    }
+    
+    if (WiFi.status() == WL_CONNECTED) {
+        has_wifi = true;
+        return 0;
+    } else {
+        return 1;
+    }
+}
 
 int wlanctl(String arg){
     arg.trim();
@@ -1740,11 +1799,6 @@ void processBytecode(uint8_t opcode, File &file) {
             String url = getStringVariable(url_var);
             String request = "";
             
-            // Отладочный вывод (опционально)
-            // Serial.print("CATCHREQUESTVAR: url='");
-            // Serial.print(url);
-            // Serial.println("'");
-
             if (!checkNetwork()) {
                 Serial.println("Error: No network connection");
                 setStringVariable(varName, "Error: No network connection");
@@ -1804,6 +1858,66 @@ void processBytecode(uint8_t opcode, File &file) {
             setStringVariable(varName, request);
             break;
         }
+        case 0x27: { // LOOP_START - начало цикла
+            // Сохраняем текущую позицию для возврата
+            uint32_t loopStart = file.position();
+            
+            // Читаем количество итераций (0 = бесконечный цикл)
+            uint32_t iterations;
+            file.read((uint8_t*)&iterations, sizeof(iterations));
+            
+            // Сохраняем информацию о цикле в переменных
+            setIntVariable("__loop_iterations", iterations);
+            setIntVariable("__loop_counter", 0);
+            setIntVariable("__loop_start", (int)loopStart);
+            break;
+        }
+        case 0x28: { // LOOP_END - конец цикла
+            int iterations = getIntVariable("__loop_iterations");
+            int counter = getIntVariable("__loop_counter");
+            int loopStart = getIntVariable("__loop_start");
+            
+            // Увеличиваем счетчик
+            counter++;
+            setIntVariable("__loop_counter", counter);
+            
+            // Проверяем условие выхода
+            if (iterations == 0 || counter < iterations) {
+                // Возвращаемся к началу цикла
+                file.seek(loopStart);
+            }
+            // else: выходим из цикла и продолжаем выполнение
+            break;
+        }
+        case 0x29: { // BREAK_LOOP - принудительный выход из цикла
+            // Просто продолжаем выполнение после LOOP_END
+            // Ищем следующий LOOP_END и пропускаем его
+            while (file.available()) {
+                uint8_t opcode = file.read();
+                if (opcode == 0x28) { // LOOP_END
+                    break;
+                } else {
+                    // Пропускаем остальные опкоды
+                    processBytecode(opcode, file);
+                }
+            }
+            break;
+        }
+        case 0x2A: { // SHA256
+            String varName1, text;
+            char ch;
+            while (file.available() && (ch = file.read()) != 0) {
+                varName1 += ch;
+            }
+            while (file.available() && (ch = file.read()) != 0) {
+                text += ch;
+            }
+            
+            String hash = sha256Hash(text);
+
+            setStringVariable(varName1, hash);
+        }
+        //короче, если кто-то читает мой код сейчас, то знайте, я НЕ буду делать goto-шки, потому что это треш и мозги варятся
         case 0xFF: // END_PROGRAM
             return;
         default:
@@ -2173,6 +2287,38 @@ int compileBlackScript(String sourceFile, String outputFile) {
         }
         else if (command == "END") {
             outFile.write((uint8_t)0xFF); // END opcode
+        }else if (command == "LOOP") {
+            outFile.write((uint8_t)0x27); // LOOP_START opcode
+            
+            if (partCount == 1) {
+                // Бесконечный цикл
+                uint32_t infinite = 0;
+                outFile.write((const uint8_t*)&infinite, 4);
+            } else if (partCount == 2) {
+                // Цикл с количеством итераций
+                uint32_t iterations = parts[1].toInt();
+                outFile.write((const uint8_t*)&iterations, 4);
+            }
+            
+        } else if (command == "ENDLOOP") {
+            outFile.write((uint8_t)0x28); // LOOP_END opcode
+            
+        } else if (command == "BREAK") {
+            outFile.write((uint8_t)0x29); // BREAK_LOOP opcode
+        }else if (command == "SHA256") {
+            if (partCount >= 3) {
+                outFile.write((uint8_t)0x2A); // SHA256 opcode
+                String varName1 = parts[1];
+                String tempstr = parts[2];
+                
+                // Записываем первую переменную
+                outFile.write((const uint8_t*)varName1.c_str(), varName1.length());
+                outFile.write((uint8_t)0x00);
+                
+                // Записываем строку
+                outFile.write((const uint8_t*)tempstr.c_str(), tempstr.length());
+                outFile.write((uint8_t)0x00);
+            }
         }
 
     }
@@ -2300,6 +2446,7 @@ void load_all(){
         logMessage("[MOUNTED]");
     } else {
         Serial.println("[\e[31mFAILED\e[0m]");
+        return;
     }
 
     //Stetting hostname
@@ -2313,6 +2460,14 @@ void load_all(){
       Serial.print("Starting WLAN :: ");
       Serial.println("[\e[32mSTARTED\e[0m]");
       //logMessage("Starting WLAN :: " + "[\e[32mSTARTED\e[0m]");
+      if (SD.exists("/etc/wlancred")){
+        if (stater_wlan_connect("Connecting to WiFi") == 0) {
+          Serial.println("\rConnecting to WiFi\t[\e[32mCONNECTED\e[0m]");
+        } else {
+          Serial.println("[\e[31mFAILED\e[0m]");
+          // Продолжаем без WiFi
+        }
+      }
     #endif
     
 
@@ -2377,8 +2532,8 @@ int clear(){
 String uname(String arg = "a"){
     switch(arg[0]){
         case 'a':
-            Serial.println("fireworkos 1.1 "+devicetype+" kernel "+kernelver+" "+kerndate);
-            return "fireworkos 1.1 "+devicetype+" kernel"+kernelver+" "+kerndate;
+            Serial.println("fireworkos 1.1.1 "+devicetype+" kernel "+kernelver+" "+kerndate);
+            return "fireworkos 1.1.1 "+devicetype+" kernel"+kernelver+" "+kerndate;
         case 'r':
             Serial.print(kernelver);
             return kernelver;
@@ -2462,35 +2617,17 @@ void processCommand(String cmd) {
     else if (cmd.startsWith("cd ")) {
         String text = cmd.substring(3);
         changedir(text);
-        //current_dir = text;
     }
     else if (cmd.startsWith("sh ")) {
         String text = cmd.substring(3);
         shellscript_starter(text);
-        //current_dir = text;
     }
-    /*
-    else if (cmd.startsWith("systemctl ")) {
-        String text = cmd.substring(10);
-        systemctl(text);
-    }*/
+
     else if (cmd.startsWith("bsc ")) {
         String args = cmd.substring(4);
         bsc_command(args);
     }
-    /*
-    else if (cmd.startsWith("retrocat ")) {
-        String text = cmd.substring(9);
-        retrocat(text);
-    }
-*/
-/*
-    else if (cmd.startsWith("exec ")) {
-      String filename = cmd.substring(5);
-      filename.trim();
-      executeProgram(filename);
-    }
-*/
+
     else if (cmd.startsWith("curl ")) {
         String url = cmd.substring(5);
         url.trim();
@@ -2572,7 +2709,6 @@ void processCommand(String cmd) {
         
         String text = cmd.substring(5);
         Serial.println(text);
-        //echo(text);
     }
 
 

@@ -194,6 +194,20 @@ String customGetline(String symbol = "*"){
                 }
             }
 }
+String sha256Hash(String input) {
+  SHA256 sha256;
+  byte hash[32];
+  
+  sha256.doUpdate((byte*)input.c_str(), input.length());
+  sha256.doFinal(hash);
+  
+  String result = "";
+  for(int i = 0; i < 32; i++) {
+    if(hash[i] < 0x10) result += "0";
+    result += String(hash[i], HEX);
+  }
+  return result;
+}
 int print(String text="", String end="\n\r"){
   Serial.print(text + end);
 }

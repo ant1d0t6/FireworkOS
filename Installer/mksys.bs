@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-PRINT FireworkOS 1.1 Installer
+PRINT FireworkOS 1.1.1 Installer
 ###Making system drive
 
 ##Creating dirs
@@ -29,6 +29,7 @@ SYS_CMD mkdir /opt
 SYS_CMD mkdir /ssr
 SYS_CMD mkdir /var
 SYS_CMD mkdir /lib
+SYS_CMD mkdir /tmp
 SYS_CMD mkdir /ssr/share
 SYS_CMD mkdir /ssr/share/man
 
