@@ -842,7 +842,7 @@ int build_hello(){
         
         return 1;
     }
-#endif
+
 
 
 int stater_wlan_connect(String message = "") {
@@ -900,7 +900,7 @@ int stater_wlan_connect(String message = "") {
         return 1;
     }
 }
-
+#endif
 int wlanctl(String arg){
     arg.trim();
     #if defined(ESP8266) || defined(ESP32) || defined(ARDUINO_UNOR4_WIFI)
