@@ -91,13 +91,28 @@ END
 - **Integer**: Whole numbers `123`
 - Maximum of 50 variables can be defined
 
-### Supported Platforms
-- `esp32` - ESP32 microcontrollers
-- `esp8266` - ESP8266 microcontrollers  
-- `avr` - AVR Arduino boards (Uno, Mega, etc.)
-- `arm` - ARM-based boards
-- `sam` - SAM Arduino boards
-- `any` - Platform-independent code
+## Colorful text
+```BlackScript
+BASICCOLOR
+PRINT This text has basic color
+REDTEXT
+PRINT This text has red color
+GREENTEXT
+PRINT This text has green color
+YELLOWTEXT
+PRINT This text has yellow color
+BLUETEXT
+PRINT This text has blue color
+```
+
+## HTTP requests
+### GET
+```BlackScript
+SET request_answer = ""
+CATCHREQUEST request_answer http://www.google.com
+SET url = "http://www.google.com"
+CATCHREQUESTVAR request_answerurl
+```
 
 ## Compilation
 
