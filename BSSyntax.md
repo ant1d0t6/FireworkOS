@@ -111,7 +111,7 @@ PRINT This text has blue color
 SET request_answer = ""
 CATCHREQUEST request_answer http://www.google.com
 SET url = "http://www.google.com"
-CATCHREQUESTVAR request_answerurl
+CATCHREQUESTVAR request_answer url
 ```
 
 ## Compilation
