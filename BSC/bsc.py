@@ -1,5 +1,5 @@
 """
-BlackScript Compiler (BlackScript 1)
+BlackScript Compiler (BlackScript 3)
 Copyright (C) 2025 hidely/ResiChat
 
 This program is free software: you can redistribute it and/or modify
