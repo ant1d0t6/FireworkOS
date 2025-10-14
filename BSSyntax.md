@@ -114,6 +114,13 @@ SET url = "http://www.google.com"
 CATCHREQUESTVAR request_answer url
 ```
 
+## Infinite loops
+```BlackScript
+LOOP
+# sth
+ENDLOOP
+```
+
 ## Compilation
 
 ### Using Python Compiler
