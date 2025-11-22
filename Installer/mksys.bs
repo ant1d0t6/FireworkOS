@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-PRINT FireworkOS 1.1.1 Installer
+PRINT FireworkOS 1.2 Installer
 ###Making system drive
 
 ##Creating dirs
@@ -73,9 +73,11 @@ SYSCMD_VAR username_cmd
 ##Password
 SET passwd_cmd = "append /etc/user "
 SET passwd_data = ""
+SET passwd_data_hashed = ""
 PRINTNR Enter password::
 GETLINE passwd_data
-CONCAT passwd_cmd passwd_data
+HASH passwd_data passwd_data_hashed
+CONCAT passwd_cmd passwd_data_hashed
 SYSCMD_VAR passwd_cmd
 ##Hostname
 SET hostname_cmd = "sethostname "
@@ -94,6 +96,7 @@ SYSCMD_VAR ssid_cmd
 ##Wi-Fi Password
 SET password_cmd = "append /etc/wlancred "
 SET password_data = ""
+SET password_data_hashed = ""
 PRINTNR Enter password for the wireless network:
 GETLINE password_data
 CONCAT password_cmd password_data
