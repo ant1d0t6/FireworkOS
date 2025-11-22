@@ -342,8 +342,8 @@ class SnowCompiler:
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        print("Usage: python compiler.py <source.txt> <output.bin> [platform]")
-        print("Platforms: esp32, esp8266, avr, any")
+        print("Usage: python3 bsc.py <source.txt> <output.bin> [platform]")
+        #print("Platforms: esp32, esp8266, avr, any")
         sys.exit(1)
 
     source = sys.argv[1]
