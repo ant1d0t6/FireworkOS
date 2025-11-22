@@ -1,6 +1,6 @@
 /*
 
-FireworkOS 1.2 (Base functions)
+FireworkOS 1.2.1 (Base functions)
 Copyright (C) 2025 hidely/ResiChat
 
 This program is free software: you can redistribute it and/or modify

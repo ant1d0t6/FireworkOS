@@ -1,6 +1,6 @@
 /*
 
-FireworkOS 1.2 (Crypto functions)
+FireworkOS 1.2.1 (Crypto functions)
 Copyright (C) 2025 hidely/ResiChat
 
 This program is free software: you can redistribute it and/or modify

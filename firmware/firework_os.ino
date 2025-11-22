@@ -1,6 +1,6 @@
 /*
 
-FireworkOS 1.2 (Main Script)
+FireworkOS 1.2.1 (Main Script)
 Copyright (C) 2025 hidely/ResiChat
 
 This program is free software: you can redistribute it and/or modify
@@ -51,14 +51,14 @@ File root;
 String current_dir = "/";
 String current_user = "";
 String devicetype = ""; 
-String kernelver = "fireworkos-1.2_snowos-1.2"; 
+String kernelver = "fireworkos-1.2.1_snowos-1.2.1"; 
 String hostname = "";
 boolean storage_mounted = false;
 boolean has_wifi = false;
 boolean wifi_autoconnect = false;
 String wlan_ssid = "";
 String wlan_password = "";
-String kerndate = "2025-11-22 22:08:17";
+String kerndate = "2025-11-22 22:08:18";
 boolean wifi_connecting = false;
 
 typedef struct {
@@ -756,7 +756,7 @@ int set_hostname(String new_hostname = "", boolean is_starts = false) {
 }
 
 int build_hello(){
-    Serial.println("\e[44m\e[37mFireworkOS v.1.2\e[0m (SnowOS Kernel 1.2)");
+    Serial.println("\e[44m\e[37mFireworkOS v.1.2.1\e[0m (SnowOS Kernel 1.2.1)");
     Serial.println("Powered by \e[35mhidely\e[0m/\e[33mResiChat\e[0m =D ");
     return 0;
 }
@@ -2442,7 +2442,9 @@ bool manual_login(){
 
     }
     else{
-        Serial.println("Original:"+password_orig+"\tYour:"+getHash(password_input));
+        #ifdef DEBUG
+        Serial.println("Original:"+password_orig+"\tYour:"+password_input);
+        #endif
         return false;
     }
 }
@@ -2551,8 +2553,8 @@ int clear(){
 String uname(String arg = "a"){
     switch(arg[0]){
         case 'a':
-            Serial.println("fireworkos 1.2 "+devicetype+" kernel "+kernelver+" "+kerndate);
-            return "fireworkos 1.2 "+devicetype+" kernel"+kernelver+" "+kerndate;
+            Serial.println("fireworkos 1.2.1 "+devicetype+" kernel "+kernelver+" "+kerndate);
+            return "fireworkos 1.2.1 "+devicetype+" kernel"+kernelver+" "+kerndate;
         case 'r':
             Serial.print(kernelver);
             return kernelver;

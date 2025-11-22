@@ -1,6 +1,6 @@
 /*
 
-FireworkOS 1.2 (Global vars)
+FireworkOS 1.2.1 (Global vars)
 Copyright (C) 2025 hidely/ResiChat
 
 This program is free software: you can redistribute it and/or modify
