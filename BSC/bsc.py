@@ -1,5 +1,5 @@
 """
-BlackScript Compiler (BlackScript 3)
+BlackScript Compiler (BlackScript 1)
 Copyright (C) 2025 hidely/ResiChat
 
 This program is free software: you can redistribute it and/or modify
@@ -56,6 +56,7 @@ class SnowCompiler:
 
             'SYSCMD_VAR': 0x1D,
             'PRINTNR': 0x1E,
+            'RETURNCHAR': 0x1F,
 
             'BASICCOLOR': 0x20,
             'REDTEXT': 0x21,
@@ -69,6 +70,8 @@ class SnowCompiler:
             'LOOP_START': 0x27,
             'LOOP_END': 0x28,
             'BREAK_LOOP': 0x29,
+
+            'HASH': 0x2A,
 
             'END': 0xFF
         }
@@ -221,10 +224,11 @@ class SnowCompiler:
                     f.write(b'\x00')  # Null terminator ТОЛЬКО для строки
 
                 elif command == 'I2CSEND':
-                    # Парсим hex значения
                     hex_values = []
                     for part in parts[1:]:
                         try:
+                            if part.startswith('0x'):
+                                part = part[2:]
                             hex_val = int(part, 16)
                             hex_values.append(hex_val)
                         except ValueError:
@@ -232,10 +236,13 @@ class SnowCompiler:
                             continue
 
                     f.write(bytes([self.opcodes['I2CSEND']]))
-                    # Записываем данные БЕЗ null terminator между ними
+
+                    # Сначала записываем длину данных
+                    f.write(bytes([len(hex_values)]))
+
+                    # Затем сами данные
                     for val in hex_values:
                         f.write(bytes([val]))
-                    # НЕ добавляем b'\x00' здесь - интерпретатор сам остановится при чтении следующего opcode
 
                 elif command == 'I2CEND':
                     f.write(bytes([self.opcodes['I2CEND']]))
@@ -266,7 +273,8 @@ class SnowCompiler:
                     f.write(bytes([self.opcodes['PRINTNR']]))
                     f.write(message.encode('ascii'))
                     f.write(b'\x00')  # Null terminator
-
+                elif command == 'RETURNCHAR':
+                    f.write(bytes([self.opcodes['RETURNCHAR']]))
                 elif command == 'BASICCOLOR':
                     f.write(bytes([self.opcodes['BASICCOLOR']]))
                 elif command == 'REDTEXT':
@@ -313,6 +321,15 @@ class SnowCompiler:
 
                 elif command == 'BREAK':
                     f.write(bytes([self.opcodes['BREAK_LOOP']]))
+                elif command == 'HASH':
+                    if len(parts) >= 3:
+                        var_name1 = parts[1]
+                        var_name2 = parts[2]
+                        f.write(bytes([self.opcodes['HASH']]))  # HASH opcode
+                        f.write(var_name1.encode('ascii'))
+                        f.write(b'\x00')
+                        f.write(var_name2.encode('ascii'))
+                        f.write(b'\x00')
 
                 elif command == 'END':
                     f.write(bytes([self.opcodes['END']]))

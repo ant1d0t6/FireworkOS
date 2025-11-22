@@ -1,6 +1,6 @@
 /*
 
-FireworkOS 1.0 (Main Script)
+FireworkOS 1.2 (Main Script)
 Copyright (C) 2025 hidely/ResiChat
 
 This program is free software: you can redistribute it and/or modify
@@ -24,7 +24,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <SPI.h>
 #include <SD.h>
+
 #include "baselib.h"
+#include "crypto.h"
 #include "global_vars.h"
 #if defined(ESP8266) || defined(ESP32)
   #include <HTTPClient.h>
@@ -49,14 +51,14 @@ File root;
 String current_dir = "/";
 String current_user = "";
 String devicetype = ""; 
-String kernelver = "fireworkos-1.1.1_snowos-1.1.1"; 
+String kernelver = "fireworkos-1.2_snowos-1.2"; 
 String hostname = "";
 boolean storage_mounted = false;
 boolean has_wifi = false;
 boolean wifi_autoconnect = false;
 String wlan_ssid = "";
 String wlan_password = "";
-String kerndate = "2025-10-12";
+String kerndate = "2025-11-22 22:08:17";
 boolean wifi_connecting = false;
 
 typedef struct {
@@ -722,6 +724,8 @@ int reboot(){
   return 0;
 }
 
+
+
 int set_hostname(String new_hostname = "", boolean is_starts = false) {
   String hostnameFile = "/etc/hostname"; // Файл для хранения hostname
   
@@ -752,7 +756,7 @@ int set_hostname(String new_hostname = "", boolean is_starts = false) {
 }
 
 int build_hello(){
-    Serial.println("\e[44m\e[37mFireworkOS v.1.1.1\e[0m (SnowOS Kernel 1.1.1)");
+    Serial.println("\e[44m\e[37mFireworkOS v.1.2\e[0m (SnowOS Kernel 1.2)");
     Serial.println("Powered by \e[35mhidely\e[0m/\e[33mResiChat\e[0m =D ");
     return 0;
 }
@@ -1529,31 +1533,33 @@ void processBytecode(uint8_t opcode, File &file) {
             break;
         }
         case 0x09: { // I2CSEND
-            // Читаем данные до нулевого байта
-            uint8_t i2cData[32];
-            int dataLength = 0;
-            
-            while (file.available() && dataLength < 31) { // Оставляем место для завершающего нуля
-                uint8_t byte = file.read();
-                if (byte == 0x00) break; // Конец данных
-                i2cData[dataLength++] = byte;
-            }
-            
-            // Отправляем данные
-            if (dataLength > 0) {
-                #ifdef DEBUG
-                Serial.print("I2C Sending ");
-                Serial.print(dataLength);
-                Serial.println(" bytes:");
-                for (int i = 0; i < dataLength; i++) {
-                    Serial.print("0x");
-                    Serial.print(i2cData[i], HEX);
-                    Serial.print(" ");
-                }
-                Serial.println();
-                #endif
+            if (file.available()) {
+                uint8_t dataLength = file.read();
                 
-                Wire.write(i2cData, dataLength);
+                // Читаем данные
+                uint8_t i2cData[32];
+                for (int i = 0; i < dataLength && i < 32; i++) {
+                    if (file.available()) {
+                        i2cData[i] = file.read();
+                    }
+                }
+                
+                // Отправляем данные
+                if (dataLength > 0) {
+                    #ifdef DEBUG
+                    Serial.print("I2C Sending ");
+                    Serial.print(dataLength);
+                    Serial.println(" bytes:");
+                    for (int i = 0; i < dataLength; i++) {
+                        Serial.print("0x");
+                        Serial.print(i2cData[i], HEX);
+                        Serial.print(" ");
+                    }
+                    Serial.println();
+                    #endif
+                    
+                    Wire.write(i2cData, dataLength);
+                }
             }
             break;
         }
@@ -1901,8 +1907,23 @@ void processBytecode(uint8_t opcode, File &file) {
             }
             break;
         }
-
+        case 0x2A: { // HASH
+            String varName1, varName2; // varName1 - from; varName2 - where
+            char ch;
+            
+            while (file.available() && (ch = file.read()) != 0) {
+                varName1 += ch;
+            }
+            
+            while (file.available() && (ch = file.read()) != 0) {
+                varName2 += ch;
+            }
+            setStringVariable(varName2, getHash(varName1));
+            break;
+        }
+  
         //короче, если кто-то читает мой код сейчас, то знайте, я НЕ буду делать goto-шки, потому что это треш и мозги варятся
+        //Закир, КЫШ!!!
         case 0xFF: // END_PROGRAM
             return;
         default:
@@ -2170,13 +2191,30 @@ int compileBlackScript(String sourceFile, String outputFile) {
             
         } else if (command == "I2CSEND") {
             outFile.write((uint8_t)0x09); // I2CSEND opcode
-            String data_iic = "";
-            for (int j = 1; j < partCount; j++) {
-                if (j > 1) data_iic += " ";
-                data_iic += parts[j];
+            
+            // Собираем hex значения
+            uint8_t hex_values[32];
+            int dataLength = 0;
+            
+            for (int j = 1; j < partCount && dataLength < 32; j++) {
+                String hexStr = parts[j];
+                // Убираем префикс "0x" если есть
+                if (hexStr.startsWith("0x")) {
+                    hexStr = hexStr.substring(2);
+                }
+                
+                // Конвертируем hex строку в число
+                uint8_t hex_val = (uint8_t)strtol(hexStr.c_str(), NULL, 16);
+                hex_values[dataLength++] = hex_val;
             }
-            outFile.write((const uint8_t*)data_iic.c_str(), data_iic.length());
-            outFile.write((uint8_t)0x00); // Null terminator
+            
+            // Сначала записываем длину данных
+            outFile.write((uint8_t)dataLength);
+            
+            // Затем сами данные
+            for (int i = 0; i < dataLength; i++) {
+                outFile.write(hex_values[i]);
+            }
         }
         else if (command == "I2CEND") {
             outFile.write((uint8_t)0x0A); // I2CEND opcode
@@ -2290,6 +2328,21 @@ int compileBlackScript(String sourceFile, String outputFile) {
             
         } else if (command == "BREAK") {
             outFile.write((uint8_t)0x29); // BREAK_LOOP opcode
+
+        }else if (command == "HASH") {
+            if (partCount >= 3) {
+                outFile.write((uint8_t)0x2A); // HASH opcode
+                String varName1 = parts[1];
+                String varName2 = parts[2];
+                
+                // Записываем первую переменную
+                outFile.write((const uint8_t*)varName1.c_str(), varName1.length());
+                outFile.write((uint8_t)0x00);
+                
+                // Записываем вторую переменную
+                outFile.write((const uint8_t*)varName2.c_str(), varName2.length());
+                outFile.write((uint8_t)0x00);
+            }
         }
 
     }
@@ -2332,7 +2385,6 @@ int shellscript_starter(String fname) {
     return 1;
   }
   
-  //Serial.println("Executing shell script: " + fname);
   return shellscript(code);
 }
 int bsc_command(String args) {
@@ -2355,11 +2407,6 @@ int bsc_command(String args) {
     if (!sourceFile.endsWith(".bs")) {
         sourceFile += ".bs";
     }
-    
-    // Добавляем расширение .bin если нужно  
-    //if (!outputFile.endsWith(".bin")) {
-    //   outputFile += ".bin";
-    //}
     
     return compileBlackScript(sourceFile, outputFile);
 }
@@ -2395,6 +2442,7 @@ bool manual_login(){
 
     }
     else{
+        Serial.println("Original:"+password_orig+"\tYour:"+getHash(password_input));
         return false;
     }
 }
@@ -2462,7 +2510,7 @@ void load_all(){
             String user_password = (user_lineCount >= 2) ? user_lines[1] : "";
             
             // Проверяем совпадение
-            if (aulogin_login == user_login && aulogin_password == user_password){
+            if (aulogin_login == user_login && getHash(aulogin_password) == user_password){
                 current_user = user_login;
             } else {
                 //Serial.println("Auto-login failed, switching to manual login");
@@ -2503,8 +2551,8 @@ int clear(){
 String uname(String arg = "a"){
     switch(arg[0]){
         case 'a':
-            Serial.println("fireworkos 1.1.1 "+devicetype+" kernel "+kernelver+" "+kerndate);
-            return "fireworkos 1.1.1 "+devicetype+" kernel"+kernelver+" "+kerndate;
+            Serial.println("fireworkos 1.2 "+devicetype+" kernel "+kernelver+" "+kerndate);
+            return "fireworkos 1.2 "+devicetype+" kernel"+kernelver+" "+kerndate;
         case 'r':
             Serial.print(kernelver);
             return kernelver;
@@ -2554,9 +2602,9 @@ int bash() {
     }
     return 0;
 }
-void man_db(String program_name){
+// void man_db(String program_name){
         
-}
+// }
 // Функция для обработки команд
 void processCommand(String cmd) {
     //cmd.toLowerCase();
@@ -2583,7 +2631,7 @@ void processCommand(String cmd) {
     }
     else if (cmd.startsWith("man ")) {
         String text = cmd.substring(4);
-        man_db(text);
+        //man_db(text);
     }
     else if (cmd.startsWith("cd ")) {
         String text = cmd.substring(3);
@@ -2709,7 +2757,4 @@ void setup() {
  
 }
 
-void loop() {
-  // put your main code here, to run repeatedly:
-
-}
+void loop() {}
