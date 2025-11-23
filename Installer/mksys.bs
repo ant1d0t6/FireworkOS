@@ -76,8 +76,7 @@ SET passwd_data = ""
 SET passwd_data_hashed = ""
 PRINTNR Enter password::
 GETLINE passwd_data
-HASH passwd_data passwd_data_hashed
-CONCAT passwd_cmd passwd_data_hashed
+CONCAT passwd_cmd passwd_data
 SYSCMD_VAR passwd_cmd
 ##Hostname
 SET hostname_cmd = "sethostname "
